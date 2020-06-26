@@ -40,8 +40,6 @@ namespace RxSequenceProcessing
 							tp.tcs.SetResult(true);
 						});
 				});
-
-
 		}
 	}
 }
