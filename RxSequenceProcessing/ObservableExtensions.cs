@@ -11,6 +11,7 @@ namespace RxSequenceProcessing
 		public static IDisposable Processing<T>(this IObservable<T> source, Func<T[], Task> callback)
 		{
 			var closer = new Subject<Unit>();
+
 			var prevTask = Task.CompletedTask;
 
 			return source
@@ -20,7 +21,13 @@ namespace RxSequenceProcessing
 					var tcs = new TaskCompletionSource<object>();
 					var currentTask = tcs.Task;
 
-					window.FirstAsync()
+					var replay = new ReplaySubject<T>();
+
+					window.Subscribe(
+						n => replay.OnNext(n),
+						ex => replay.OnError(ex),
+						() => replay.OnCompleted());
+					replay.FirstAsync()
 						.Subscribe(async _ =>
 						{
 							await prevTask.ConfigureAwait(false);
@@ -28,11 +35,11 @@ namespace RxSequenceProcessing
 							prevTask = currentTask;
 							closer.OnNext(Unit.Default);
 						});
-					return (window, tcs);
+					return (subject: replay, tcs);
 				})
 				.Subscribe(tp =>
 				{
-					tp.window
+					tp.subject
 						.ToArray()
 						.Subscribe(async n =>
 						{
